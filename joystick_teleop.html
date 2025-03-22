@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TurtleBot3 Web Joystick Teleop</title>
+  <!-- roslibjs from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+  <!-- nipplejs from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
+
+  <style>
+    /* General reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    h1 {
+      margin-bottom: 0.5rem;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+    p {
+      margin-bottom: 1.5rem;
+      text-align: center;
+      max-width: 600px;
+      line-height: 1.4;
+    }
+
+    .connection-settings {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .connection-settings label {
+      font-weight: bold;
+      margin-right: 0.3rem;
+    }
+    .connection-settings input {
+      width: 90px;
+      padding: 0.2rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .connection-settings button {
+      padding: 0.4rem 1rem;
+      background: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .connection-settings button:hover {
+      background: #45a049;
+    }
+
+    .status {
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: #666;
+      text-align: center;
+    }
+    .status.connected {
+      color: green;
+    }
+    .status.disconnected {
+      color: red;
+    }
+
+    /* Container for the joystick */
+    .joystick-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 320px;
+      margin-bottom: 1rem;
+    }
+    #joystickZone {
+      width: 300px;
+      height: 300px;
+      background: #fafafa;
+      border: 2px dashed #ccc;
+      border-radius: 50%;
+      position: relative;
+    }
+    .description {
+      font-size: 0.9rem;
+      color: #666;
+      text-align: left;
+      margin-top: 1rem;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>TurtleBot3 Web Joystick Teleop</h1>
+  <p>Control your TurtleBot3 from any modern browser using this on-screen joystick. Adjust the ROS bridge IP and port below, then connect and move the joystick to drive your robot.</p>
+
+  <!-- Connection Settings -->
+  <div class="connection-settings">
+    <label for="rosbridge-ip">ROS Bridge IP:</label>
+    <input id="rosbridge-ip" type="text" value="localhost">
+    <label for="rosbridge-port">Port:</label>
+    <input id="rosbridge-port" type="text" value="9090">
+    <button onclick="connectToROS()">Connect</button>
+  </div>
+
+  <div id="status" class="status disconnected">Not connected</div>
+
+  <div class="joystick-container">
+    <div id="joystickZone"></div>
+    <div class="description">
+      <strong>How it works:</strong>
+      <ul>
+        <li>Dragging up/down increases or decreases linear velocity (forward/backward).</li>
+        <li>Dragging left/right adjusts angular velocity (turning left/right).</li>
+        <li>Velocity scales with how far you drag from the center.</li>
+        <li>The joystick automatically resets to zero velocity when released.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    /*******************************************************
+     * 1) TurtleBot3 & Joystick Configuration
+     *******************************************************/
+    let ros = null;            // will hold ROSLIB.Ros instance
+    let cmdVelTopic = null;    // will hold the publisher to /cmd_vel
+
+    // TurtleBot3 model ("burger", "waffle", or "waffle_pi")
+    const TURTLEBOT3_MODEL = "burger";
+
+    // TurtleBot3 velocity limits
+    const BURGER_MAX_LIN_VEL = 1; //default 0.22
+    const BURGER_MAX_ANG_VEL = 2.84;
+
+    const WAFFLE_MAX_LIN_VEL = 0.26;
+    const WAFFLE_MAX_ANG_VEL = 1.82;
+
+    // Approximate maximum distance for the joystick (for scaling)
+    const JOYSTICK_MAX_DISTANCE = 75;  // px radius for scaling
+
+    // Current velocities
+    let linearVel = 0.0;
+    let angularVel = 0.0;
+
+    // Return the max linear velocity for the selected TurtleBot3 model
+    function getMaxLinVel() {
+      if (TURTLEBOT3_MODEL === "burger") {
+        return BURGER_MAX_LIN_VEL;
+      } else {
+        // waffle / waffle_pi
+        return WAFFLE_MAX_LIN_VEL;
+      }
+    }
+    // Return the max angular velocity for the selected TurtleBot3 model
+    function getMaxAngVel() {
+      if (TURTLEBOT3_MODEL === "burger") {
+        return BURGER_MAX_ANG_VEL;
+      } else {
+        return WAFFLE_MAX_ANG_VEL;
+      }
+    }
+
+    /*******************************************************
+     * 2) Connect to ROS
+     *******************************************************/
+    function connectToROS() {
+      const ipInput = document.getElementById('rosbridge-ip');
+      const portInput = document.getElementById('rosbridge-port');
+      const statusEl = document.getElementById('status');
+
+      const ip = ipInput.value.trim();
+      const port = portInput.value.trim();
+      const url = `ws://${ip}:${port}`;
+
+      // If we already have a connection, close it before creating a new one
+      if (ros && ros.isConnected) {
+        ros.close();
+      }
+
+      // Create a new ROS connection
+      ros = new ROSLIB.Ros({
+        url: url
+      });
+
+      ros.on('connection', () => {
+        statusEl.textContent = `Connected to rosbridge at ws://${ip}:${port}`;
+        statusEl.classList.remove('disconnected');
+        statusEl.classList.add('connected');
+
+        // Initialize cmd_vel topic publisher
+        cmdVelTopic = new ROSLIB.Topic({
+          ros: ros,
+          name: '/cmd_vel',
+          messageType: 'geometry_msgs/Twist'
+        });
+      });
+
+      ros.on('error', (error) => {
+        console.error('Error connecting to rosbridge websocket:', error);
+        statusEl.textContent = `Error connecting to ws://${ip}:${port}`;
+        statusEl.classList.remove('connected');
+        statusEl.classList.add('disconnected');
+      });
+
+      ros.on('close', () => {
+        console.log('Connection to rosbridge closed.');
+        statusEl.textContent = `Disconnected from ws://${ip}:${port}`;
+        statusEl.classList.remove('connected');
+        statusEl.classList.add('disconnected');
+      });
+    }
+
+    /*******************************************************
+     * 3) Publish cmd_vel messages
+     *******************************************************/
+    function publishCmdVel(lin, ang) {
+      // Only publish if connected and topic is defined
+      if (!ros || !cmdVelTopic || !ros.isConnected) {
+        return;
+      }
+
+      let twist = new ROSLIB.Message({
+        linear:  {
+          x: lin,
+          y: 0.0,
+          z: 0.0
+        },
+        angular: {
+          x: 0.0,
+          y: 0.0,
+          z: ang
+        }
+      });
+      cmdVelTopic.publish(twist);
+    }
+
+    /*******************************************************
+     * 4) Setup the joystick (nipplejs)
+     *******************************************************/
+    const joystickZone = document.getElementById('joystickZone');
+
+    // Create the manager
+    const manager = nipplejs.create({
+      zone: joystickZone,
+      mode: 'static',
+      position: { left: '50%', top: '50%' },
+      size: 200,
+      color: 'blue'
+    });
+
+    // On move: compute velocities, publish
+    manager.on('move', function (evt, data) {
+      if (data.distance) {
+        let maxLinVel = getMaxLinVel();
+        let maxAngVel = getMaxAngVel();
+
+        let distance = data.distance;
+        let angleRad = data.angle.radian;
+        
+        // We'll offset angle so 0 rad = "up"
+        // Nipplejs uses 0 rad at the "right" (east).
+        // If we want 0 rad to be up, subtract PI/2
+        const alpha = angleRad - Math.PI / 2.0;
+
+        // Normalize distance to [0..1]
+        let norm = distance / JOYSTICK_MAX_DISTANCE;
+        if (norm > 1.0) norm = 1.0;  // clamp at 1.0
+
+        // forward/backward => linear x
+        // alpha=0 => forward => negative cos => move forward
+        let forward = -Math.cos(alpha) * norm;
+        // left/right => angular z
+        let turn    = Math.sin(alpha) * norm;
+
+        linearVel  = forward * maxLinVel;
+        angularVel = turn    * maxAngVel;
+      }
+      // Publish
+      publishCmdVel(linearVel, angularVel);
+    });
+
+    // On end: stop
+    manager.on('end', function () {
+      linearVel  = 0.0;
+      angularVel = 0.0;
+      publishCmdVel(linearVel, angularVel);
+    });
+  </script>
+</body>
+</html>
