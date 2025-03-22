@@ -44,7 +44,7 @@ sudo apt-get install ros-humble-rosbridge-suite
     
 3. **Open the Joystick Page**
     
-    Open the provided `index.html` file in your browser (or serve it via a simple HTTP server).
+    Open the provided `joystick_teleop.html` file in your browser (or serve it via a simple HTTP server).
     If rosbridge is on the same machine, set the IP to `localhost` and the port to `9090`.
     Click **Connect**, and once connected, use the on-screen joystick to control your TurtleBot3!
 
