@@ -2,6 +2,9 @@
 
 A simple HTML-based joystick teleoperation interface for TurtleBot3 (including Gazebo simulations). This project provides an on-screen joystick that publishes velocity commands (`/cmd_vel`) via a WebSocket bridge using [`rosbridge_suite`](https://github.com/RobotWebTools/rosbridge_suite).
 
+![image](https://github.com/MehrzadGolabi/turtlebot_teleop_joystick/blob/main/RESOURCES/picture.png)
+
+
 You need to install **rosbridge_suite** for ROS 2 Humble:
 
 ```bash
