@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TurtleBot3 Web Joystick Teleop</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TurtleBot3 Web Joystick Teleop (ROS 2 Jazzy)</title>
   <!-- roslibjs from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
   <!-- nipplejs from CDN -->
@@ -22,62 +23,130 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2rem;
+      padding: 1.5rem;
     }
     h1 {
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
       font-size: 1.8rem;
       text-align: center;
     }
-    p {
-      margin-bottom: 1.5rem;
+    .subtitle {
+      margin-bottom: 1.2rem;
       text-align: center;
-      max-width: 600px;
+      max-width: 680px;
       line-height: 1.4;
+      color: #555;
+      font-size: 0.95rem;
     }
 
-    .connection-settings {
+    /* Settings panel */
+    .settings-panel {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.08);
+      padding: 1rem 1.2rem;
+      max-width: 680px;
+      width: 100%;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .settings-row {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      margin-bottom: 1.5rem;
+      gap: 0.6rem;
       flex-wrap: wrap;
     }
-    .connection-settings label {
-      font-weight: bold;
-      margin-right: 0.3rem;
+    .field-group {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
     }
-    .connection-settings input {
-      width: 90px;
-      padding: 0.2rem;
+    .settings-panel label {
+      font-weight: bold;
+      font-size: 0.85rem;
+      color: #444;
+    }
+    .settings-panel input,
+    .settings-panel select {
+      padding: 0.35rem 0.5rem;
       border: 1px solid #ccc;
       border-radius: 4px;
+      font-size: 0.85rem;
+      background: #fff;
+    }
+    .settings-panel input.input-ip {
+      width: 130px;
+    }
+    .settings-panel input.input-port {
+      width: 70px;
       text-align: center;
     }
-    .connection-settings button {
+    .settings-panel input.input-ns {
+      width: 110px;
+    }
+    .settings-panel input.input-topic {
+      width: 110px;
+    }
+    .settings-panel input.input-vel {
+      width: 70px;
+      text-align: center;
+    }
+
+    .btn {
       padding: 0.4rem 1rem;
-      background: #4CAF50;
       color: #fff;
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      font-weight: bold;
+      font-size: 0.85rem;
+      transition: background 0.15s ease;
     }
-    .connection-settings button:hover {
+    .btn-connect {
+      background: #4CAF50;
+    }
+    .btn-connect:hover {
       background: #45a049;
+    }
+    .btn-disconnect {
+      background: #d9534f;
+    }
+    .btn-disconnect:hover {
+      background: #c9302c;
+    }
+
+    .topic-preview {
+      font-size: 0.8rem;
+      color: #666;
+      text-align: center;
+      background: #f8f9fa;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+    }
+    .topic-preview code {
+      font-family: monospace;
+      color: #0056b3;
+      font-weight: bold;
     }
 
     .status {
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-      color: #666;
+      margin-bottom: 0.8rem;
+      font-size: 0.95rem;
+      font-weight: bold;
       text-align: center;
     }
     .status.connected {
-      color: green;
+      color: #2e7d32;
+    }
+    .status.connecting {
+      color: #ef6c00;
     }
     .status.disconnected {
-      color: red;
+      color: #c62828;
     }
 
     /* Container for the joystick */
@@ -85,11 +154,11 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 1rem;
+      padding: 1.2rem;
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 320px;
+      width: 340px;
       margin-bottom: 1rem;
     }
     #joystickZone {
@@ -99,41 +168,122 @@
       border: 2px dashed #ccc;
       border-radius: 50%;
       position: relative;
+      touch-action: none;
+      user-select: none;
+    }
+    .telemetry {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      margin-top: 0.9rem;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      border: 1px solid #e9ecef;
     }
     .description {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #666;
       text-align: left;
-      margin-top: 1rem;
-      line-height: 1.4;
+      margin-top: 0.9rem;
+      line-height: 1.45;
+      padding-left: 1rem;
     }
   </style>
 </head>
 
 <body>
   <h1>TurtleBot3 Web Joystick Teleop</h1>
-  <p>Control your TurtleBot3 from any modern browser using this on-screen joystick. Adjust the ROS bridge IP and port below, then connect and move the joystick to drive your robot.</p>
+  <p class="subtitle">
+    Control your ROS 2 Jazzy TurtleBot3 from any modern browser. Configure your <code>rosbridge</code> address, optional robot namespace, and message type below.
+  </p>
 
-  <!-- Connection Settings -->
-  <div class="connection-settings">
-    <label for="rosbridge-ip">ROS Bridge IP:</label>
-    <input id="rosbridge-ip" type="text" value="localhost">
-    <label for="rosbridge-port">Port:</label>
-    <input id="rosbridge-port" type="text" value="9090">
-    <button onclick="connectToROS()">Connect</button>
+  <!-- Connection & ROS Settings -->
+  <div class="settings-panel">
+    <!-- Row 1: WebSocket Connection -->
+    <div class="settings-row">
+      <div class="field-group">
+        <label for="rosbridge-proto">Protocol:</label>
+        <select id="rosbridge-proto">
+          <option value="ws" selected>ws://</option>
+          <option value="wss">wss://</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="rosbridge-ip">IP / Host:</label>
+        <input id="rosbridge-ip" class="input-ip" type="text" value="127.0.0.1" placeholder="127.0.0.1">
+      </div>
+      <div class="field-group">
+        <label for="rosbridge-port">Port:</label>
+        <input id="rosbridge-port" class="input-port" type="number" value="9090" min="1" max="65535">
+      </div>
+      <button id="connect-btn" class="btn btn-connect" onclick="toggleConnection()">Connect</button>
+    </div>
+
+    <!-- Row 2: Topic, Namespace & Message Type -->
+    <div class="settings-row">
+      <div class="field-group">
+        <label for="ros-namespace" title="Optional ROS 2 robot namespace (e.g., tb3_0)">Namespace:</label>
+        <input id="ros-namespace" class="input-ns" type="text" value="" placeholder="(optional)" oninput="onTopicConfigChange()">
+      </div>
+      <div class="field-group">
+        <label for="ros-topic">Topic:</label>
+        <input id="ros-topic" class="input-topic" type="text" value="/cmd_vel" placeholder="/cmd_vel" oninput="onTopicConfigChange()">
+      </div>
+      <div class="field-group">
+        <label for="ros-msg-type" title="ROS 2 Jazzy uses TwistStamped by default in Gazebo Harmonic / diff_drive_controller">Msg Type:</label>
+        <select id="ros-msg-type" onchange="onTopicConfigChange()">
+          <option value="geometry_msgs/msg/TwistStamped" selected>TwistStamped (Jazzy default)</option>
+          <option value="geometry_msgs/msg/Twist">Twist (Unstamped)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Row 3: Robot Model & Velocity Limits -->
+    <div class="settings-row">
+      <div class="field-group">
+        <label for="tb3-model">Model:</label>
+        <select id="tb3-model" onchange="onModelChange()">
+          <option value="burger" selected>Burger (0.22 m/s, 2.84 rad/s)</option>
+          <option value="waffle">Waffle / Waffle Pi (0.26 m/s, 1.82 rad/s)</option>
+          <option value="custom">Custom Limits</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="max-lin-vel">Max Lin (m/s):</label>
+        <input id="max-lin-vel" class="input-vel" type="number" step="0.01" min="0.01" max="5.0" value="0.22" oninput="onCustomVelChange()">
+      </div>
+      <div class="field-group">
+        <label for="max-ang-vel">Max Ang (rad/s):</label>
+        <input id="max-ang-vel" class="input-vel" type="number" step="0.05" min="0.05" max="10.0" value="2.84" oninput="onCustomVelChange()">
+      </div>
+    </div>
+
+    <div class="topic-preview">
+      Target Topic: <code id="resolved-topic-display">/cmd_vel</code> &nbsp;|&nbsp;
+      Type: <code id="resolved-type-display">geometry_msgs/msg/TwistStamped</code>
+    </div>
   </div>
 
-  <div id="status" class="status disconnected">Not connected</div>
+  <div id="status" class="status disconnected">Disconnected</div>
 
   <div class="joystick-container">
     <div id="joystickZone"></div>
+
+    <div class="telemetry">
+      <span>Linear X: <strong id="lin-readout">0.00</strong> m/s</span>
+      <span>Angular Z: <strong id="ang-readout">0.00</strong> rad/s</span>
+    </div>
+
     <div class="description">
       <strong>How it works:</strong>
       <ul>
-        <li>Dragging up/down increases or decreases linear velocity (forward/backward).</li>
-        <li>Dragging left/right adjusts angular velocity (turning left/right).</li>
-        <li>Velocity scales with how far you drag from the center.</li>
-        <li>The joystick automatically resets to zero velocity when released.</li>
+        <li>Drag <strong>up/down</strong> for forward (<code>+x</code>) and backward (<code>-x</code>) linear velocity.</li>
+        <li>Drag <strong>left/right</strong> for counter-clockwise (<code>+z</code>) and clockwise (<code>-z</code>) angular velocity.</li>
+        <li>Commands publish continuously at 20 Hz while holding the joystick so the robot watchdog does not time out.</li>
+        <li>Releasing the joystick immediately publishes a zero-velocity stop command.</li>
       </ul>
     </div>
   </div>
@@ -142,105 +292,195 @@
     /*******************************************************
      * 1) TurtleBot3 & Joystick Configuration
      *******************************************************/
-    let ros = null;            // will hold ROSLIB.Ros instance
-    let cmdVelTopic = null;    // will hold the publisher to /cmd_vel
+    let ros = null;            // Holds ROSLIB.Ros instance
+    let cmdVelTopic = null;    // Holds ROSLIB.Topic publisher
+    let publishTimer = null;   // Interval timer for continuous publishing while active
 
-    // TurtleBot3 model ("burger", "waffle", or "waffle_pi")
-    const TURTLEBOT3_MODEL = "burger";
+    const MODEL_PRESETS = {
+      burger: { maxLin: 0.22, maxAng: 2.84 },
+      waffle: { maxLin: 0.26, maxAng: 1.82 }
+    };
 
-    // TurtleBot3 velocity limits
-    const BURGER_MAX_LIN_VEL = 1; //default 0.22
-    const BURGER_MAX_ANG_VEL = 2.84;
+    // Nipplejs size is 200px => max radial distance from center is 100px
+    const JOYSTICK_SIZE = 200;
+    const JOYSTICK_MAX_DISTANCE = JOYSTICK_SIZE / 2; // 100px
+    const PUBLISH_INTERVAL_MS = 50; // 20 Hz continuous publishing
 
-    const WAFFLE_MAX_LIN_VEL = 0.26;
-    const WAFFLE_MAX_ANG_VEL = 1.82;
-
-    // Approximate maximum distance for the joystick (for scaling)
-    const JOYSTICK_MAX_DISTANCE = 75;  // px radius for scaling
-
-    // Current velocities
+    // Current target velocities
     let linearVel = 0.0;
     let angularVel = 0.0;
 
-    // Return the max linear velocity for the selected TurtleBot3 model
+    /**
+     * Normalize namespace + topic into a valid ROS 2 topic path.
+     * Examples:
+     *   namespace="",      topic="/cmd_vel" -> "/cmd_vel"
+     *   namespace="tb3_0", topic="/cmd_vel" -> "/tb3_0/cmd_vel"
+     *   namespace="/tb3/", topic="cmd_vel"  -> "/tb3/cmd_vel"
+     */
+    function resolveTopicName(namespaceRaw, topicRaw) {
+      const ns = (namespaceRaw || '').trim().replace(/^\/+|\/+$/g, '');
+      let topic = (topicRaw || '').trim().replace(/^\/+|\/+$/g, '');
+      if (!topic) {
+        topic = 'cmd_vel';
+      }
+      return ns ? `/${ns}/${topic}` : `/${topic}`;
+    }
+
+    /**
+     * Compute linear and angular velocities from nipplejs angle (radians) and distance (px).
+     * In nipplejs:
+     *   0 rad      = right (East)  => forward =  0, turn = -1 (clockwise / right)
+     *   PI / 2 rad = up (North)    => forward = +1, turn =  0 (forward)
+     *   PI rad     = left (West)   => forward =  0, turn = +1 (counter-clockwise / left)
+     *   3*PI/2 rad = down (South)  => forward = -1, turn =  0 (backward)
+     */
+    function computeVelocities(distance, angleRad, maxLinVel, maxAngVel) {
+      if (!distance || distance <= 0) {
+        return { linear: 0.0, angular: 0.0 };
+      }
+      const norm = Math.min(distance / JOYSTICK_MAX_DISTANCE, 1.0);
+      const forward = Math.sin(angleRad) * norm;
+      const turn = -Math.cos(angleRad) * norm;
+      return {
+        linear: forward * maxLinVel,
+        angular: turn * maxAngVel
+      };
+    }
+
     function getMaxLinVel() {
-      if (TURTLEBOT3_MODEL === "burger") {
-        return BURGER_MAX_LIN_VEL;
-      } else {
-        // waffle / waffle_pi
-        return WAFFLE_MAX_LIN_VEL;
+      const val = parseFloat(document.getElementById('max-lin-vel').value);
+      return Number.isFinite(val) && val > 0 ? val : MODEL_PRESETS.burger.maxLin;
+    }
+
+    function getMaxAngVel() {
+      const val = parseFloat(document.getElementById('max-ang-vel').value);
+      return Number.isFinite(val) && val > 0 ? val : MODEL_PRESETS.burger.maxAng;
+    }
+
+    function onModelChange() {
+      const model = document.getElementById('tb3-model').value;
+      if (MODEL_PRESETS[model]) {
+        document.getElementById('max-lin-vel').value = MODEL_PRESETS[model].maxLin;
+        document.getElementById('max-ang-vel').value = MODEL_PRESETS[model].maxAng;
       }
     }
-    // Return the max angular velocity for the selected TurtleBot3 model
-    function getMaxAngVel() {
-      if (TURTLEBOT3_MODEL === "burger") {
-        return BURGER_MAX_ANG_VEL;
-      } else {
-        return WAFFLE_MAX_ANG_VEL;
+
+    function onCustomVelChange() {
+      document.getElementById('tb3-model').value = 'custom';
+    }
+
+    function onTopicConfigChange() {
+      const ns = document.getElementById('ros-namespace').value;
+      const topic = document.getElementById('ros-topic').value;
+      const msgType = document.getElementById('ros-msg-type').value;
+      const resolvedTopic = resolveTopicName(ns, topic);
+
+      document.getElementById('resolved-topic-display').textContent = resolvedTopic;
+      document.getElementById('resolved-type-display').textContent = msgType;
+
+      // Re-initialize publisher if already connected
+      if (ros && ros.isConnected) {
+        initPublisher();
       }
+    }
+
+    function updateReadout(lin, ang) {
+      document.getElementById('lin-readout').textContent = lin.toFixed(2);
+      document.getElementById('ang-readout').textContent = ang.toFixed(2);
     }
 
     /*******************************************************
-     * 2) Connect to ROS
+     * 2) Connect / Disconnect to ROS Bridge
      *******************************************************/
-    function connectToROS() {
-      const ipInput = document.getElementById('rosbridge-ip');
-      const portInput = document.getElementById('rosbridge-port');
+    function setStatus(text, stateClass) {
       const statusEl = document.getElementById('status');
+      statusEl.textContent = text;
+      statusEl.className = `status ${stateClass}`;
+    }
 
-      const ip = ipInput.value.trim();
-      const port = portInput.value.trim();
-      const url = `ws://${ip}:${port}`;
+    function updateConnectButton(isConnected) {
+      const btn = document.getElementById('connect-btn');
+      if (isConnected) {
+        btn.textContent = 'Disconnect';
+        btn.className = 'btn btn-disconnect';
+      } else {
+        btn.textContent = 'Connect';
+        btn.className = 'btn btn-connect';
+      }
+    }
 
-      // If we already have a connection, close it before creating a new one
+    function initPublisher() {
+      if (!ros || !ros.isConnected) {
+        return;
+      }
+      const ns = document.getElementById('ros-namespace').value;
+      const topic = document.getElementById('ros-topic').value;
+      const msgType = document.getElementById('ros-msg-type').value;
+      const resolvedTopic = resolveTopicName(ns, topic);
+
+      cmdVelTopic = new ROSLIB.Topic({
+        ros: ros,
+        name: resolvedTopic,
+        messageType: msgType
+      });
+    }
+
+    function toggleConnection() {
       if (ros && ros.isConnected) {
+        stopPublishing();
         ros.close();
+        return;
+      }
+      connectToROS();
+    }
+
+    function connectToROS() {
+      const proto = document.getElementById('rosbridge-proto').value;
+      const ip = document.getElementById('rosbridge-ip').value.trim() || '127.0.0.1';
+      const port = document.getElementById('rosbridge-port').value.trim() || '9090';
+      const url = `${proto}://${ip}:${port}`;
+
+      if (ros) {
+        try {
+          ros.close();
+        } catch (e) {
+          // Ignore close errors on stale socket
+        }
       }
 
-      // Create a new ROS connection
+      setStatus(`Connecting to ${url}...`, 'connecting');
+
       ros = new ROSLIB.Ros({
         url: url
       });
 
       ros.on('connection', () => {
-        statusEl.textContent = `Connected to rosbridge at ws://${ip}:${port}`;
-        statusEl.classList.remove('disconnected');
-        statusEl.classList.add('connected');
-
-        // Initialize cmd_vel topic publisher
-        cmdVelTopic = new ROSLIB.Topic({
-          ros: ros,
-          name: '/cmd_vel',
-          messageType: 'geometry_msgs/Twist'
-        });
+        setStatus(`Connected to rosbridge at ${url}`, 'connected');
+        updateConnectButton(true);
+        initPublisher();
       });
 
       ros.on('error', (error) => {
         console.error('Error connecting to rosbridge websocket:', error);
-        statusEl.textContent = `Error connecting to ws://${ip}:${port}`;
-        statusEl.classList.remove('connected');
-        statusEl.classList.add('disconnected');
+        setStatus(`Error connecting to ${url}`, 'disconnected');
+        updateConnectButton(false);
       });
 
       ros.on('close', () => {
         console.log('Connection to rosbridge closed.');
-        statusEl.textContent = `Disconnected from ws://${ip}:${port}`;
-        statusEl.classList.remove('connected');
-        statusEl.classList.add('disconnected');
+        stopContinuousPublishLoop();
+        cmdVelTopic = null;
+        setStatus(`Disconnected from ${url}`, 'disconnected');
+        updateConnectButton(false);
       });
     }
 
     /*******************************************************
-     * 3) Publish cmd_vel messages
+     * 3) Build & Publish cmd_vel Messages
      *******************************************************/
-    function publishCmdVel(lin, ang) {
-      // Only publish if connected and topic is defined
-      if (!ros || !cmdVelTopic || !ros.isConnected) {
-        return;
-      }
-
-      let twist = new ROSLIB.Message({
-        linear:  {
+    function buildCmdVelMessage(lin, ang, msgType) {
+      const twistPayload = {
+        linear: {
           x: lin,
           y: 0.0,
           z: 0.0
@@ -250,61 +490,95 @@
           y: 0.0,
           z: ang
         }
-      });
-      cmdVelTopic.publish(twist);
+      };
+
+      if (msgType === 'geometry_msgs/msg/TwistStamped') {
+        // Omitting header.stamp allows rosbridge_library to stamp the message
+        // using the ROS 2 node clock (supporting both wall time and use_sim_time).
+        return new ROSLIB.Message({
+          header: {
+            frame_id: 'base_link'
+          },
+          twist: twistPayload
+        });
+      }
+
+      return new ROSLIB.Message(twistPayload);
+    }
+
+    function publishCmdVel(lin, ang) {
+      updateReadout(lin, ang);
+
+      if (!ros || !cmdVelTopic || !ros.isConnected) {
+        return;
+      }
+
+      const msgType = document.getElementById('ros-msg-type').value;
+      const message = buildCmdVelMessage(lin, ang, msgType);
+      cmdVelTopic.publish(message);
+    }
+
+    function startContinuousPublishLoop() {
+      if (publishTimer !== null) {
+        return;
+      }
+      publishTimer = setInterval(() => {
+        publishCmdVel(linearVel, angularVel);
+      }, PUBLISH_INTERVAL_MS);
+    }
+
+    function stopContinuousPublishLoop() {
+      if (publishTimer !== null) {
+        clearInterval(publishTimer);
+        publishTimer = null;
+      }
+    }
+
+    function stopPublishing() {
+      stopContinuousPublishLoop();
+      linearVel = 0.0;
+      angularVel = 0.0;
+      publishCmdVel(0.0, 0.0);
     }
 
     /*******************************************************
-     * 4) Setup the joystick (nipplejs)
+     * 4) Setup the Joystick (nipplejs)
      *******************************************************/
     const joystickZone = document.getElementById('joystickZone');
 
-    // Create the manager
     const manager = nipplejs.create({
       zone: joystickZone,
       mode: 'static',
       position: { left: '50%', top: '50%' },
-      size: 200,
-      color: 'blue'
+      size: JOYSTICK_SIZE,
+      color: '#1976d2'
     });
 
-    // On move: compute velocities, publish
+    manager.on('start', function () {
+      startContinuousPublishLoop();
+    });
+
     manager.on('move', function (evt, data) {
-      if (data.distance) {
-        let maxLinVel = getMaxLinVel();
-        let maxAngVel = getMaxAngVel();
-
-        let distance = data.distance;
-        let angleRad = data.angle.radian;
-        
-        // We'll offset angle so 0 rad = "up"
-        // Nipplejs uses 0 rad at the "right" (east).
-        // If we want 0 rad to be up, subtract PI/2
-        const alpha = angleRad - Math.PI / 2.0;
-
-        // Normalize distance to [0..1]
-        let norm = distance / JOYSTICK_MAX_DISTANCE;
-        if (norm > 1.0) norm = 1.0;  // clamp at 1.0
-
-        // forward/backward => linear x
-        // alpha=0 => forward => negative cos => move forward
-        let forward = -Math.cos(alpha) * norm;
-        // left/right => angular z
-        let turn    = Math.sin(alpha) * norm;
-
-        linearVel  = forward * maxLinVel;
-        angularVel = turn    * maxAngVel;
+      if (data && data.angle) {
+        const vels = computeVelocities(
+          data.distance,
+          data.angle.radian,
+          getMaxLinVel(),
+          getMaxAngVel()
+        );
+        linearVel = vels.linear;
+        angularVel = vels.angular;
       }
-      // Publish
       publishCmdVel(linearVel, angularVel);
     });
 
-    // On end: stop
     manager.on('end', function () {
-      linearVel  = 0.0;
-      angularVel = 0.0;
-      publishCmdVel(linearVel, angularVel);
+      stopPublishing();
     });
+
+    // Safety stop if browser tab loses focus or closes while driving
+    window.addEventListener('blur', stopPublishing);
+    window.addEventListener('beforeunload', stopPublishing);
   </script>
 </body>
 </html>
